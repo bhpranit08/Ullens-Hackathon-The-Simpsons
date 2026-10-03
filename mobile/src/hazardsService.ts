@@ -1,5 +1,4 @@
-import * as SecureStore from 'expo-secure-store';
-import { Platform } from 'react-native';
+import { apiFetch } from './apiService';
 
 export type Hazard = {
   id: string;
@@ -12,41 +11,33 @@ export type Hazard = {
   };
 };
 
-const HAZARDS_KEY = 'trailguard.hazards';
-
 export async function getHazards(): Promise<Hazard[]> {
   try {
-    const saved = Platform.OS === 'web' 
-      ? globalThis.localStorage?.getItem(HAZARDS_KEY) 
-      : await SecureStore.getItemAsync(HAZARDS_KEY);
-      
-    return saved ? JSON.parse(saved) : [];
+    const data = await apiFetch('/hazards');
+    return data.hazards || [];
   } catch {
     return [];
   }
 }
 
-export async function addHazard(hazard: Hazard): Promise<void> {
-  const current = await getHazards();
-  
-  const updated = [...current, hazard];
-  const value = JSON.stringify(updated);
-  
-  if (Platform.OS === 'web') {
-    globalThis.localStorage?.setItem(HAZARDS_KEY, value);
-  } else {
-    await SecureStore.setItemAsync(HAZARDS_KEY, value);
+export async function addHazard(hazard: Hazard, sessionId?: string): Promise<void> {
+  try {
+    await apiFetch('/hazards', {
+      method: 'POST',
+      body: JSON.stringify({
+        title: hazard.title,
+        description: hazard.description,
+        severity: hazard.severity,
+        latitude: hazard.coordinate.latitude,
+        longitude: hazard.coordinate.longitude,
+        sessionId,
+      })
+    });
+  } catch (error) {
+    console.error('Failed to add hazard:', error);
   }
 }
 
 export async function removeHazard(id: string): Promise<void> {
-  const current = await getHazards();
-  const updated = current.filter(h => h.id !== id);
-  const value = JSON.stringify(updated);
-  
-  if (Platform.OS === 'web') {
-    globalThis.localStorage?.setItem(HAZARDS_KEY, value);
-  } else {
-    await SecureStore.setItemAsync(HAZARDS_KEY, value);
-  }
+  // Can be implemented if backend supports DELETE /api/hazards/:id
 }

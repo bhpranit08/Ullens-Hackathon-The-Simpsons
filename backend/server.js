@@ -66,7 +66,7 @@ const notificationSchema = new mongoose.Schema(
   {
     recipient: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    type: { type: String, enum: ['activity_started', 'activity_ended', 'checkin_safe', 'sos', 'missed_checkin'], required: true },
+    type: { type: String, enum: ['activity_started', 'activity_ended', 'checkin_safe', 'sos', 'missed_checkin', 'hazard_reported'], required: true },
     sessionId: { type: String },
     message: { type: String, required: true },
     read: { type: Boolean, default: false },
@@ -74,6 +74,22 @@ const notificationSchema = new mongoose.Schema(
   { timestamps: true }
 );
 const Notification = mongoose.model('Notification', notificationSchema);
+
+// Hazard Map Pin
+const hazardSchema = new mongoose.Schema(
+  {
+    reporter: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    title: { type: String, required: true },
+    description: { type: String },
+    severity: { type: String, enum: ['low', 'medium', 'high'], default: 'medium' },
+    location: {
+      latitude: { type: Number, required: true },
+      longitude: { type: Number, required: true },
+    },
+  },
+  { timestamps: true }
+);
+const HazardModel = mongoose.model('Hazard', hazardSchema);
 
 // ─────────────────────────────────────────────
 // Helpers
@@ -371,6 +387,54 @@ app.get('/api/sessions/:sessionId', requireAuth, async (req, res, next) => {
       endedAt: session.endedAt,
       location: session.location,
     }});
+  } catch (e) { return next(e); }
+});
+
+// ─────────────────────────────────────────────
+// Hazard Routes
+// ─────────────────────────────────────────────
+
+app.get('/api/hazards', requireAuth, async (req, res, next) => {
+  try {
+    const hazards = await HazardModel.find().sort({ createdAt: -1 }).limit(100);
+    return res.json({ hazards: hazards.map(h => ({
+      id: h._id,
+      title: h.title,
+      description: h.description,
+      severity: h.severity,
+      coordinate: { latitude: h.location.latitude, longitude: h.location.longitude }
+    }))});
+  } catch (e) { return next(e); }
+});
+
+app.post('/api/hazards', requireAuth, async (req, res, next) => {
+  try {
+    const { title, description, severity, latitude, longitude, sessionId } = req.body;
+    const hazard = await HazardModel.create({
+      reporter: req.userId,
+      title,
+      description,
+      severity: severity || 'medium',
+      location: { latitude, longitude }
+    });
+
+    if (sessionId) {
+      const session = await LiveSession.findOne({ sessionId, owner: req.userId });
+      if (session) {
+        const owner = await User.findById(req.userId);
+        for (const recipientId of session.sharedWith) {
+          await createNotification(
+            recipientId,
+            req.userId,
+            'hazard_reported',
+            sessionId,
+            `${owner.name} reported a ${severity} hazard: ${title} on their route.`
+          );
+        }
+      }
+    }
+    
+    return res.status(201).json({ success: true, hazard });
   } catch (e) { return next(e); }
 });
 
