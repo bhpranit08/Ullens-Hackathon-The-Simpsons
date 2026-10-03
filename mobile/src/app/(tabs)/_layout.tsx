@@ -8,10 +8,10 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: StyleSheet.flatten(styles.tabBar),
         tabBarActiveTintColor: '#2563EB',
         tabBarInactiveTintColor: '#94A3B8',
-        tabBarLabelStyle: styles.tabLabel,
+        tabBarLabelStyle: StyleSheet.flatten(styles.tabLabel),
         tabBarBackground: () => (
           <BlurView intensity={80} style={StyleSheet.absoluteFill} tint="light" />
         ),

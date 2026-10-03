@@ -119,19 +119,78 @@ emergency-service integrations.
 
 ## Implementation Progress (feature/auth-pages branch)
 
+### Auth & Onboarding
 - **Login Screen UI/UX Overhaul**: Completely redesigned with the new premium blue theme, proper form validation, keyboard safety, and loading states. Kept existing API integration untouched.
 - **Create Account Screen UI/UX Overhaul**: Redesigned to match the Login experience with polished placeholders and validation. Uses existing registration API.
-- **Dashboard (Home) UI/UX Overhaul**: Rebuilt `index.tsx` to immediately communicate safety status (green indicator), clear 'Start Safe Session' primary action, and quick access cards. Redirects unauthenticated users to the new login flow.
-- **Start Safety Session UI**: Created `start.tsx` with a beautiful blue activity selection, session details form, and clear Demo Mode label.
-- **Active Safety Session UI**: Created `session/active.tsx` with a robust timer/countdown, 'I AM SAFE' button, simulated map placeholder, and a distinct SOS button.
-- **Hazard Map UI**: Created `map.tsx` with `react-native-maps`, showing mock markers, a search bar, and a 'Report Hazard' floating button.
-- **Trusted Contacts UI**: Created `contacts.tsx` with a clean list of trusted contacts and their active monitoring status.
-- **Timeline / History UI**: Created `timeline.tsx` with a vertical event timeline using blue-themed dots and connecting lines, matching the reference design.
 - **Bug Fix — Port Conflict**: Discovered Apple AirPlay Receiver was hijacking port 5000. Changed backend to port 5001. Updated `auth.tsx` and both `.env` files.
 - **Branding**: Updated login and register screens to show "TRAILGUARD" instead of "APP NAME".
 - **Navigation Error Fix**: Fixed "Cannot update ForwardRef(NavigationContainerInner) while rendering LoginScreen" by replacing render-time `router.replace()` with declarative `<Redirect>` component in both login.tsx and register.tsx.
+
+### Navigation & Layout
 - **Bottom Tab Navigation**: Restructured the app into a `(tabs)` group with Expo Router tab navigation: Home, Hazards, Contacts, History. Removed old root-level duplicate screens.
-- **Profile Dropdown**: Tapping the avatar on the Home screen opens a profile modal with the user's name, email, and a Sign Out button.
-- **Report Hazard UI**: Built a full bottom-sheet modal on the Hazard Map tab with title, description, severity picker (low/medium/high with color coding), and submit flow with success feedback.
-- **Empty States (Real Data Only)**: All screens (Home, Hazards, Contacts, History) now show beautiful, informative empty states when no data exists. Removed all mock/hardcoded data.
-- **Severity Guide**: Added a severity legend card on the Hazards screen explaining High/Medium/Low hazard levels.
+- **Settings Route**: Added `/settings` as a modal-presentation Stack screen in the root layout.
+
+### Home Dashboard (`(tabs)/index.tsx`)
+- **Dashboard UI/UX Overhaul**: Rebuilt to immediately communicate safety status (green indicator), clear "Start Activity" primary action, and quick access cards. Redirects unauthenticated users to login.
+- **"Sharing With You" Section**: When trusted contacts exist, the home screen shows a live-location card for the first contact with an embedded `react-native-maps` MapView, a pulsing red LIVE badge, and simulated GPS coordinates.
+- **Recent Activity Folder Cards**: Recent activities now display as folder-style cards with an "Activity Folder" tag badge, improved card shadows, and rounded corners.
+- **Profile → Settings Navigation**: Tapping the avatar now navigates to the full Settings page instead of opening a small popup.
+
+### Safety Sessions
+- **Start Safety Session UI** (`start.tsx`): Activity selection with beautiful blue cards, session details form, and Demo Mode label.
+- **Active Safety Session UI** (`session/active.tsx`): Robust timer/countdown, "I AM SAFE" check-in button, real device GPS location on a live `react-native-maps` MapView with polyline path tracking, and a distinct SOS button.
+- **End Session Screen** (`session/end.tsx`): Post-session form collecting description, notes, and photos. Saves completed session data to history.
+- **Photo Uploads**: Integrated `expo-image-picker` in the End Session screen — users can select multiple photos from their library, see thumbnails, remove individual photos, and save them with the activity history.
+
+### Activity History & Timeline (`(tabs)/timeline.tsx`)
+- **Events Tab**: Vertical event timeline using blue-themed dots and connecting lines with tap-to-navigate to activity details.
+- **Recent Tab (Folder View)**: New folder-style card layout showing activities as browseable cards with date, title, subtitle, and "Activity Folder" badge. Each card navigates to the full activity detail view.
+- **Activity Details Page** (`activity/[id].tsx`): Full detail view showing activity name, type, status badge, duration, date/time stats, description, notes, photos (horizontal scrolling gallery), and an updates/check-ins timeline.
+
+### Hazard Map (`(tabs)/map.tsx`)
+- **Interactive Map**: Full `react-native-maps` MapView with user's real GPS location.
+- **Tap-to-Report Hazards**: Tap anywhere on the map to place a blue temporary marker. Selected coordinates auto-fill into the hazard report form.
+- **Hazard Report Modal**: Bottom-sheet modal with title, description, severity picker (low/medium/high with color coding), location preview, and submit flow with success feedback.
+- **View & Remove Hazards**: Tapping any existing hazard marker opens a detailed modal showing the hazard's information, severity color coding, and a destructive button to remove it.
+- **Animations**: The "Report Hazard" Floating Action Button features a fluid entrance animation using `Animated.spring`.
+- **Persistent Hazards**: Created `hazardsService.ts` — reported hazards are saved to device secure storage and persist across app restarts and tab switches. Hazard markers are color-coded by severity (red/yellow/green).
+
+### Trusted Contacts (`(tabs)/contacts.tsx`)
+- **Contacts Service** (`contactsService.ts`): Local secure storage service for CRUD operations on trusted contacts (add, list, remove).
+- **Add Contact Modal**: Bottom-sheet form to add a contact by name and email, saved to persistent storage.
+- **Remove Contact**: Each contact card now has a red × button to delete the contact.
+- **Live Data**: Contacts persist across app sessions using `expo-secure-store`.
+
+### Settings & Profile (`settings.tsx`)
+- **Full Settings Page**: Replaces the old tiny avatar popup with a proper full-screen settings page (presented as a modal).
+- **Profile Section**: Large avatar with camera overlay for uploading a profile photo via `expo-image-picker`.
+- **Change Password**: Modal form with current password, new password, confirm password fields and validation (min 8 chars, match check).
+- **Change Email**: Modal form showing current email and accepting a new email with validation.
+- **Upload Profile Photo**: Opens device image picker with 1:1 crop.
+- **Preferences**: Notifications and Privacy & Safety setting rows (ready for backend hookup).
+- **About**: App version display and Terms of Service link.
+- **Sign Out**: Red destructive button with confirmation alert dialog.
+
+### Data Layer
+- **History Service** (`history.ts`): Local secure storage for activity history with full CRUD — `addHistoryEvent`, `getHistoryEvents`, `updateHistoryEvent`, `getHistoryEvent`. Schema includes id, title, subtitle, type, date, duration, description, notes, photos, updates array, and active status.
+- **Contacts Service** (`contactsService.ts`): Secure storage for trusted contacts with `getContacts`, `addContact`, `removeContact`.
+- **Hazards Service** (`hazardsService.ts`): Secure storage for community hazard reports with `getHazards`, `addHazard`.
+
+### Empty States & Polish
+- All screens (Home, Hazards, Contacts, History) show beautiful, informative empty states when no data exists.
+- Removed all mock/hardcoded data — everything is driven by real user actions.
+- Consistent blue-themed design system across all screens.
+
+## MVP Boundaries (Remaining: Backend Left)
+
+The frontend mobile application MVP is complete. All core flows (auth, safety sessions, hazards, contacts, history, profile) are fully functional using simulated local persistence (`expo-secure-store`). 
+
+**The following features require the remaining backend implementation ("Backend Left"):**
+
+1. **API Integration**: Hooking up the existing local data services (`history.ts`, `contactsService.ts`, `hazardsService.ts`, `profileService.ts`) to real backend endpoints.
+2. **Notifications**: SMS/email delivery and push notifications for check-ins and SOS alerts.
+3. **Live Web Sockets**: Real-time location sharing between trusted contacts (currently simulated with interval updates).
+4. **Background Location**: Background GPS tracking when the app is minimized (currently only tracks in foreground).
+5. **App Store Readiness**: Map API-key setup for production builds.
+6. **External APIs**: Emergency-service integrations.
+

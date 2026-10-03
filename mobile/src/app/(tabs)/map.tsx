@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, Pressable, ScrollView, Modal, TextInput, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, Pressable, ScrollView, Modal, TextInput, ActivityIndicator, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, PROVIDER_DEFAULT, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Feather } from '@expo/vector-icons';
+import { useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 
 import { useAuth } from '@/auth';
+import { getHazards, addHazard, removeHazard, Hazard } from '@/hazardsService';
 
 export default function HazardMapScreen() {
   const { user } = useAuth();
@@ -14,14 +17,34 @@ export default function HazardMapScreen() {
   const [reportDescription, setReportDescription] = useState('');
   const [reportSeverity, setReportSeverity] = useState<'low' | 'medium' | 'high'>('medium');
   const [reportSubmitted, setReportSubmitted] = useState(false);
+  const [selectedHazard, setSelectedHazard] = useState<Hazard | null>(null);
 
   // Location state
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [loadingLocation, setLoadingLocation] = useState(true);
 
-  // Real data: no hazards until fetched from API
-  const [hazards] = useState<any[]>([]);
+  // Fetch hazards from local secure storage mock
+  const [hazards, setHazards] = useState<Hazard[]>([]);
+  const [selectedCoordinate, setSelectedCoordinate] = useState<{latitude: number, longitude: number} | null>(null);
+
+  // Animations
+  const fabAnim = useState(new Animated.Value(0))[0];
+
+  useEffect(() => {
+    Animated.spring(fabAnim, {
+      toValue: 1,
+      tension: 50,
+      friction: 5,
+      useNativeDriver: true,
+    }).start();
+  }, [fabAnim]);
+
+  useFocusEffect(
+    useCallback(() => {
+      getHazards().then(setHazards);
+    }, [])
+  );
 
   useEffect(() => {
     (async () => {
@@ -43,7 +66,21 @@ export default function HazardMapScreen() {
 
   function submitReport() {
     if (!reportTitle.trim()) return;
-    // TODO: POST to backend hazard API when available
+    
+    const coordToUse = selectedCoordinate || (location ? { latitude: location.coords.latitude, longitude: location.coords.longitude } : null);
+    if (!coordToUse) return;
+
+    const newHazard: Hazard = {
+      id: Math.random().toString(),
+      coordinate: coordToUse,
+      title: reportTitle,
+      description: reportDescription,
+      severity: reportSeverity,
+    };
+
+    addHazard(newHazard).then(() => {
+      setHazards(prev => [...prev, newHazard]);
+    });
     setReportSubmitted(true);
     setTimeout(() => {
       setShowReport(false);
@@ -51,7 +88,15 @@ export default function HazardMapScreen() {
       setReportDescription('');
       setReportSeverity('medium');
       setReportSubmitted(false);
+      setSelectedCoordinate(null);
     }, 1500);
+  }
+
+  async function handleDeleteHazard() {
+    if (!selectedHazard) return;
+    await removeHazard(selectedHazard.id);
+    setHazards(prev => prev.filter(h => h.id !== selectedHazard.id));
+    setSelectedHazard(null);
   }
 
   const region: Region | undefined = location
@@ -84,16 +129,28 @@ export default function HazardMapScreen() {
           initialRegion={region}
           showsUserLocation
           showsMyLocationButton
+          onPress={(e) => {
+            setSelectedCoordinate(e.nativeEvent.coordinate);
+          }}
         >
-          {hazards.map((hazard: any) => (
+          {hazards.map((hazard: Hazard) => (
             <Marker
               key={hazard.id}
               coordinate={hazard.coordinate}
-              title={hazard.title}
-              description={hazard.description}
               pinColor={hazard.severity === 'high' ? '#EF4444' : hazard.severity === 'medium' ? '#F59E0B' : '#10B981'}
+              onPress={() => {
+                setSelectedHazard(hazard);
+                setSelectedCoordinate(null);
+              }}
             />
           ))}
+          {selectedCoordinate && (
+            <Marker 
+              coordinate={selectedCoordinate} 
+              pinColor="#2563EB" 
+              title="Selected Location" 
+            />
+          )}
         </MapView>
       ) : null}
 
@@ -106,21 +163,28 @@ export default function HazardMapScreen() {
         </View>
       </SafeAreaView>
 
-      {/* Empty state overlay when no hazards */}
-      {!loadingLocation && !locationError && hazards.length === 0 && (
-        <View style={styles.emptyOverlay} pointerEvents="none">
-          <View style={[styles.emptyBadge, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
-            <Feather name="check-circle" size={16} color="#047857" />
-            <Text style={styles.emptyBadgeText}>No hazards reported nearby</Text>
-          </View>
-        </View>
-      )}
+      {/* Removed empty state overlay */}
 
       {/* Report FAB */}
       <SafeAreaView style={styles.footerSafeArea} pointerEvents="box-none">
-        <Pressable style={styles.reportFab} onPress={() => setShowReport(true)}>
-          <Text style={styles.reportFabText}>+ Report Hazard</Text>
-        </Pressable>
+        {selectedCoordinate && (
+          <View style={styles.selectedLocationTag}>
+            <Text style={styles.selectedLocationText}>Location Selected</Text>
+            <Pressable onPress={() => setSelectedCoordinate(null)}>
+              <Text style={styles.clearSelectionText}>Clear</Text>
+            </Pressable>
+          </View>
+        )}
+        <Animated.View style={{
+          transform: [
+            { scale: fabAnim },
+            { translateY: fabAnim.interpolate({ inputRange: [0, 1], outputRange: [50, 0] }) }
+          ]
+        }}>
+          <Pressable style={styles.reportFab} onPress={() => setShowReport(true)}>
+            <Text style={styles.reportFabText}>+ Report Hazard</Text>
+          </Pressable>
+        </Animated.View>
       </SafeAreaView>
 
       {/* Report Hazard Modal */}
@@ -189,20 +253,72 @@ export default function HazardMapScreen() {
                     ))}
                   </View>
 
-                  {location && (
+                  {selectedCoordinate ? (
                     <View style={styles.locationTag}>
                       <Feather name="map-pin" size={16} color="#475569" />
                       <Text style={styles.locationTagText}>
-                        Location: {location.coords.latitude.toFixed(4)}, {location.coords.longitude.toFixed(4)}
+                        Location: {selectedCoordinate.latitude.toFixed(4)}, {selectedCoordinate.longitude.toFixed(4)}
                       </Text>
                     </View>
-                  )}
+                  ) : location ? (
+                    <View style={styles.locationTag}>
+                      <Feather name="map-pin" size={16} color="#475569" />
+                      <Text style={styles.locationTagText}>
+                        Your Location: {location.coords.latitude.toFixed(4)}, {location.coords.longitude.toFixed(4)}
+                      </Text>
+                    </View>
+                  ) : null}
 
                   <Pressable style={styles.submitButton} onPress={submitReport}>
                     <Text style={styles.submitButtonText}>Submit Report</Text>
                   </Pressable>
                 </ScrollView>
               </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* View Hazard Modal */}
+      <Modal visible={!!selectedHazard} transparent animationType="slide" onRequestClose={() => setSelectedHazard(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Hazard Details</Text>
+              <Pressable onPress={() => setSelectedHazard(null)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </Pressable>
+            </View>
+            {selectedHazard && (
+              <View style={styles.modalBody}>
+                <Text style={styles.hazardDetailTitle}>{selectedHazard.title}</Text>
+                
+                <View style={styles.hazardDetailSeverity}>
+                  <View style={[
+                    styles.severityDot,
+                    { backgroundColor: selectedHazard.severity === 'high' ? '#EF4444' : selectedHazard.severity === 'medium' ? '#F59E0B' : '#10B981' }
+                  ]} />
+                  <Text style={styles.hazardDetailSeverityText}>
+                    {selectedHazard.severity.toUpperCase()} SEVERITY
+                  </Text>
+                </View>
+
+                {selectedHazard.description ? (
+                  <Text style={styles.hazardDetailDescription}>{selectedHazard.description}</Text>
+                ) : null}
+                
+                <View style={styles.locationTag}>
+                  <Feather name="map-pin" size={16} color="#475569" />
+                  <Text style={styles.locationTagText}>
+                    {selectedHazard.coordinate.latitude.toFixed(4)}, {selectedHazard.coordinate.longitude.toFixed(4)}
+                  </Text>
+                </View>
+
+                <Pressable style={styles.deleteButton} onPress={handleDeleteHazard}>
+                  <Feather name="trash-2" size={18} color="#DC2626" />
+                  <Text style={styles.deleteButtonText}>Remove Hazard</Text>
+                </Pressable>
+              </View>
             )}
           </View>
         </View>
@@ -261,4 +377,18 @@ const styles = StyleSheet.create({
   successIcon: { fontSize: 48, marginBottom: 16 },
   successTitle: { fontSize: 20, fontWeight: '800', color: '#0F172A', marginBottom: 8 },
   successText: { fontSize: 15, color: '#475569', textAlign: 'center' },
+  
+  selectedLocationTag: { backgroundColor: '#DBEAFE', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  selectedLocationText: { color: '#1E3A8A', fontWeight: '600', fontSize: 14 },
+  clearSelectionText: { color: '#EF4444', fontWeight: '700', fontSize: 14 },
+
+  // Hazard Details
+  hazardDetailTitle: { fontSize: 22, fontWeight: '800', color: '#0F172A', marginBottom: 12 },
+  hazardDetailSeverity: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, backgroundColor: '#F8FAFC', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, alignSelf: 'flex-start' },
+  severityDot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
+  hazardDetailSeverityText: { fontSize: 12, fontWeight: '700', color: '#475569', letterSpacing: 0.5 },
+  hazardDetailDescription: { fontSize: 16, color: '#334155', lineHeight: 24, marginBottom: 8 },
+  
+  deleteButton: { flexDirection: 'row', backgroundColor: '#FEF2F2', borderRadius: 16, paddingVertical: 18, alignItems: 'center', justifyContent: 'center', marginTop: 24, borderWidth: 1, borderColor: '#FECACA', gap: 8 },
+  deleteButtonText: { color: '#DC2626', fontSize: 16, fontWeight: '700' },
 });

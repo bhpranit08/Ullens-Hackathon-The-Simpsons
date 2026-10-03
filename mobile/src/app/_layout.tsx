@@ -13,6 +13,11 @@ export default function RootLayout() {
         <Stack.Screen name="login" />
         <Stack.Screen name="register" />
         <Stack.Screen name="start" />
+        <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="session/active" />
+        <Stack.Screen name="session/end" />
+        <Stack.Screen name="activity/[id]" />
+        <Stack.Screen name="shared/[id]" />
       </Stack>
     </AuthProvider>
   );
