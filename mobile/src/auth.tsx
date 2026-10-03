@@ -7,7 +7,7 @@ type Session = { token: string; user: User };
 type Auth = { user: User | null; ready: boolean; login: (email: string, password: string) => Promise<void>; register: (name: string, email: string, password: string) => Promise<void>; logout: () => Promise<void> };
 
 const key = 'trailguard.auth';
-const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000/api';
+const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.18.88:5001/api';
 const AuthContext = createContext<Auth | null>(null);
 
 const sessionStore = {
@@ -18,7 +18,15 @@ const sessionStore = {
 
 async function request(path: string, body?: Record<string, string>, token?: string) {
   const response = await fetch(`${apiUrl}${path}`, { method: body ? 'POST' : 'GET', headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
-  const data = await response.json();
+  
+  let data;
+  const text = await response.text();
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch (e) {
+    throw new Error('Server returned an unexpected response. Please check your connection.');
+  }
+
   if (!response.ok) throw new Error(data.message ?? 'Unable to complete that request.');
   return data;
 }

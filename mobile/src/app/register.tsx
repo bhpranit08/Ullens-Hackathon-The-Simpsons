@@ -1,4 +1,4 @@
-import { Link, useRouter } from 'expo-router';
+import { Link, Redirect } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View, ScrollView } from 'react-native';
@@ -8,7 +8,6 @@ import { useAuth } from '@/auth';
 
 export default function RegisterScreen() {
   const { ready, register, user } = useAuth();
-  const router = useRouter();
   
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -17,12 +16,13 @@ export default function RegisterScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [registerSuccess, setRegisterSuccess] = useState(false);
 
   if (!ready) return <View style={styles.center}><ActivityIndicator color="#2563EB" /></View>;
   SplashScreen.hideAsync();
 
-  if (user) {
-    router.replace('/');
+  if (user || registerSuccess) {
+    return <Redirect href="/" />;
   }
 
   async function submit() {
@@ -35,7 +35,7 @@ export default function RegisterScreen() {
     setSubmitting(true);
     try {
       await register(name, email, password);
-      router.replace('/');
+      setRegisterSuccess(true);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Unable to create account.');
     } finally { 
@@ -47,20 +47,22 @@ export default function RegisterScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
         <View style={styles.container}>
-          <Text style={styles.eyebrow}>APP NAME</Text>
+          <Text style={styles.eyebrow}>TRAILGUARD</Text>
           <Text style={styles.title}>Create Account</Text>
           <Text style={styles.copy}>Join us to get started.</Text>
           <View style={styles.form}>
             <TextInput 
               style={styles.input} 
-              placeholder="Full name" 
+              placeholder="Enter your full name" 
+              placeholderTextColor="#94A3B8"
               value={name} 
               onChangeText={setName} 
               autoCapitalize="words" 
             />
             <TextInput 
               style={styles.input} 
-              placeholder="Email address" 
+              placeholder="Enter your email" 
+              placeholderTextColor="#94A3B8"
               value={email} 
               onChangeText={setEmail} 
               autoCapitalize="none" 
@@ -70,7 +72,8 @@ export default function RegisterScreen() {
             <View style={styles.passwordContainer}>
               <TextInput 
                 style={[styles.input, styles.passwordInput]} 
-                placeholder="Password (8+ characters)" 
+                placeholder="Create a password" 
+                placeholderTextColor="#94A3B8"
                 value={password} 
                 onChangeText={setPassword} 
                 autoComplete="new-password" 
@@ -84,6 +87,7 @@ export default function RegisterScreen() {
               <TextInput 
                 style={[styles.input, styles.passwordInput]} 
                 placeholder="Confirm password" 
+                placeholderTextColor="#94A3B8"
                 value={confirmPassword} 
                 onChangeText={setConfirmPassword} 
                 autoComplete="new-password" 

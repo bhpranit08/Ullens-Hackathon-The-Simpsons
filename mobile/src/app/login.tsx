@@ -1,4 +1,4 @@
-import { Link, useRouter } from 'expo-router';
+import { Link, Redirect } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -8,21 +8,19 @@ import { useAuth } from '@/auth';
 
 export default function LoginScreen() {
   const { ready, login, user } = useAuth();
-  const router = useRouter();
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [loginSuccess, setLoginSuccess] = useState(false);
 
   if (!ready) return <View style={styles.center}><ActivityIndicator color="#2563EB" /></View>;
   SplashScreen.hideAsync();
 
-  // If already logged in, we might want to redirect, but for this task we'll just show a simple message or let it be handled by layout.
-  if (user) {
-    // Basic redirect to index if already logged in.
-    router.replace('/');
+  if (user || loginSuccess) {
+    return <Redirect href="/" />;
   }
 
   async function submit() {
@@ -31,7 +29,7 @@ export default function LoginScreen() {
     setSubmitting(true);
     try {
       await login(email, password);
-      router.replace('/');
+      setLoginSuccess(true);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Unable to sign in.');
     } finally { 
@@ -42,13 +40,14 @@ export default function LoginScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <Text style={styles.eyebrow}>APP NAME</Text>
+        <Text style={styles.eyebrow}>TRAILGUARD</Text>
         <Text style={styles.title}>Welcome back</Text>
         <Text style={styles.copy}>Sign in to your account.</Text>
         <View style={styles.form}>
           <TextInput 
             style={styles.input} 
-            placeholder="Email or username" 
+            placeholder="Enter your email" 
+            placeholderTextColor="#94A3B8"
             value={email} 
             onChangeText={setEmail} 
             autoCapitalize="none" 
@@ -58,7 +57,8 @@ export default function LoginScreen() {
           <View style={styles.passwordContainer}>
             <TextInput 
               style={[styles.input, styles.passwordInput]} 
-              placeholder="Password" 
+              placeholder="Enter your password" 
+              placeholderTextColor="#94A3B8"
               value={password} 
               onChangeText={setPassword} 
               autoComplete="current-password" 

@@ -116,3 +116,22 @@ Contacts must already be registered TrailGuard users and are selected by
 email. This MVP excludes SMS/email delivery, push notifications, real GPS or
 background tracking, map API-key setup for app-store builds, photo upload, and
 emergency-service integrations.
+
+## Implementation Progress (feature/auth-pages branch)
+
+- **Login Screen UI/UX Overhaul**: Completely redesigned with the new premium blue theme, proper form validation, keyboard safety, and loading states. Kept existing API integration untouched.
+- **Create Account Screen UI/UX Overhaul**: Redesigned to match the Login experience with polished placeholders and validation. Uses existing registration API.
+- **Dashboard (Home) UI/UX Overhaul**: Rebuilt `index.tsx` to immediately communicate safety status (green indicator), clear 'Start Safe Session' primary action, and quick access cards. Redirects unauthenticated users to the new login flow.
+- **Start Safety Session UI**: Created `start.tsx` with a beautiful blue activity selection, session details form, and clear Demo Mode label.
+- **Active Safety Session UI**: Created `session/active.tsx` with a robust timer/countdown, 'I AM SAFE' button, simulated map placeholder, and a distinct SOS button.
+- **Hazard Map UI**: Created `map.tsx` with `react-native-maps`, showing mock markers, a search bar, and a 'Report Hazard' floating button.
+- **Trusted Contacts UI**: Created `contacts.tsx` with a clean list of trusted contacts and their active monitoring status.
+- **Timeline / History UI**: Created `timeline.tsx` with a vertical event timeline using blue-themed dots and connecting lines, matching the reference design.
+- **Bug Fix — Port Conflict**: Discovered Apple AirPlay Receiver was hijacking port 5000. Changed backend to port 5001. Updated `auth.tsx` and both `.env` files.
+- **Branding**: Updated login and register screens to show "TRAILGUARD" instead of "APP NAME".
+- **Navigation Error Fix**: Fixed "Cannot update ForwardRef(NavigationContainerInner) while rendering LoginScreen" by replacing render-time `router.replace()` with declarative `<Redirect>` component in both login.tsx and register.tsx.
+- **Bottom Tab Navigation**: Restructured the app into a `(tabs)` group with Expo Router tab navigation: Home, Hazards, Contacts, History. Removed old root-level duplicate screens.
+- **Profile Dropdown**: Tapping the avatar on the Home screen opens a profile modal with the user's name, email, and a Sign Out button.
+- **Report Hazard UI**: Built a full bottom-sheet modal on the Hazard Map tab with title, description, severity picker (low/medium/high with color coding), and submit flow with success feedback.
+- **Empty States (Real Data Only)**: All screens (Home, Hazards, Contacts, History) now show beautiful, informative empty states when no data exists. Removed all mock/hardcoded data.
+- **Severity Guide**: Added a severity legend card on the Hazards screen explaining High/Medium/Low hazard levels.

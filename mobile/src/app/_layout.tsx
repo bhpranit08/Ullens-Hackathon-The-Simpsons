@@ -8,7 +8,12 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <Stack screenOptions={{ headerShown: false }} />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="login" />
+        <Stack.Screen name="register" />
+        <Stack.Screen name="start" />
+      </Stack>
     </AuthProvider>
   );
 }
