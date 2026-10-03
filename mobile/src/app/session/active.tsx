@@ -1,6 +1,6 @@
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { StyleSheet, Text, View, Pressable, SafeAreaView, ActivityIndicator, Alert, Platform, Modal, TextInput } from 'react-native';
+import { StyleSheet, Text, View, Pressable, SafeAreaView, ActivityIndicator, Alert, Platform, Modal, TextInput, BackHandler } from 'react-native';
 import MapView, { Polyline, PROVIDER_DEFAULT, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Feather } from '@expo/vector-icons';
@@ -50,11 +50,28 @@ export default function ActiveSessionScreen() {
     }
   }, [isShared, id]);
 
-  // Elapsed timer
+  // Elapsed timer & BackHandler
   useEffect(() => {
     const t = setInterval(() => setElapsed(prev => prev + 1), 1000);
-    return () => clearInterval(t);
-  }, []);
+    
+    const onBackPress = () => {
+      Alert.alert(
+        'End Session?',
+        'Are you sure you want to end this active session?',
+        [
+          { text: 'Keep Going', style: 'cancel' },
+          { text: 'End Session', style: 'destructive', onPress: () => handleEndSession() }
+        ]
+      );
+      return true;
+    };
+    const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    
+    return () => {
+      clearInterval(t);
+      subscription.remove();
+    };
+  }, [id, isShared, elapsed, handleEndSession]);
 
   // Countdown timer
   useEffect(() => {

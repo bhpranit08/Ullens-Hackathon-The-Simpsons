@@ -21,6 +21,7 @@ export default function HomeScreen() {
   const [notifications, setNotifications] = useState<ApiNotification[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const seenSosIds = useRef<Set<string>>(new Set());
+  const isInitialFetch = useRef(true);
 
   useEffect(() => {
     if (!user) return;
@@ -28,6 +29,13 @@ export default function HomeScreen() {
       apiGetSharedSessions().then(setSharedSessions).catch(() => {});
       apiGetNotifications().then(notifs => {
         setNotifications(notifs);
+        
+        if (isInitialFetch.current) {
+          notifs.filter(n => n.type === 'sos').forEach(n => seenSosIds.current.add(n.id));
+          isInitialFetch.current = false;
+          return;
+        }
+
         const newSos = notifs.filter(n => n.type === 'sos' && !n.read && !seenSosIds.current.has(n.id));
         if (newSos.length > 0) {
           newSos.forEach(n => seenSosIds.current.add(n.id));

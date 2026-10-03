@@ -1,6 +1,6 @@
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TextInput, Pressable, ScrollView, SafeAreaView, ActivityIndicator, Image } from 'react-native';
+import { StyleSheet, Text, View, TextInput, Pressable, ScrollView, SafeAreaView, ActivityIndicator, Image, BackHandler } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { updateHistoryEvent, getHistoryEvent, HistoryEvent } from '@/history';
@@ -32,7 +32,14 @@ export default function EndSessionScreen() {
     if (id) {
       getHistoryEvent(id).then(e => setSession(e ?? null));
     }
-  }, [id]);
+    
+    const onBackPress = () => {
+      router.replace('/');
+      return true;
+    };
+    const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => subscription.remove();
+  }, [id, router]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -59,6 +66,9 @@ export default function EndSessionScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
+          <Pressable onPress={() => router.replace('/')} style={styles.closeButton}>
+            <Feather name="x" size={24} color="#64748B" />
+          </Pressable>
           <Text style={styles.headerTitle}>Session Completed!</Text>
           <Text style={styles.headerSubtitle}>Great job staying safe out there.</Text>
         </View>
@@ -144,8 +154,9 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scrollContainer: { flexGrow: 1, padding: 24, paddingBottom: 40 },
   
-  header: { marginBottom: 32, alignItems: 'center' },
-  headerTitle: { fontSize: 28, fontWeight: '800', color: '#0F172A', marginBottom: 8 },
+  header: { marginBottom: 32, alignItems: 'center', position: 'relative' },
+  closeButton: { position: 'absolute', right: 0, top: 0, padding: 8 },
+  headerTitle: { fontSize: 28, fontWeight: '800', color: '#0F172A', marginBottom: 8, marginTop: 12 },
   headerSubtitle: { fontSize: 16, color: '#64748B' },
   
   summaryCard: { backgroundColor: '#FFFFFF', padding: 20, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 32, flexDirection: 'row', justifyContent: 'space-around' },
