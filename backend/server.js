@@ -30,8 +30,9 @@ const User = mongoose.model('User', userSchema);
 // Trusted contact: owner -> contact (one-directional add)
 const trustedContactSchema = new mongoose.Schema(
   {
-    owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    contact: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, // The user who sent the request
+    contact: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, // The user who receives the request
+    status: { type: String, enum: ['pending', 'accepted'], default: 'pending' },
   },
   { timestamps: true }
 );
@@ -169,15 +170,42 @@ app.get('/api/auth/me', requireAuth, async (req, res, next) => {
 // Trusted Contacts Routes
 // ─────────────────────────────────────────────
 
-// GET /api/contacts — list my trusted contacts (as full user objects)
+// GET /api/contacts — list my trusted contacts (accepted) and pending requests
 app.get('/api/contacts', requireAuth, async (req, res, next) => {
   try {
-    const entries = await TrustedContact.find({ owner: req.userId }).populate('contact', 'name email');
-    return res.json({ contacts: entries.map(e => publicUser(e.contact)) });
+    // Contacts where I am the owner (I sent) or contact (I received) and status is accepted
+    const acceptedRecords = await TrustedContact.find({
+      $or: [{ owner: req.userId }, { contact: req.userId }],
+      status: 'accepted'
+    }).populate('owner', 'name email').populate('contact', 'name email');
+
+    const contacts = acceptedRecords.map(e => {
+      // If I am the owner, the contact is the other person
+      if (e.owner._id.toString() === req.userId) return publicUser(e.contact);
+      return publicUser(e.owner);
+    });
+
+    // Pending requests that I RECEIVED (I need to accept)
+    const pendingReceived = await TrustedContact.find({
+      contact: req.userId,
+      status: 'pending'
+    }).populate('owner', 'name email');
+
+    // Pending requests that I SENT
+    const pendingSent = await TrustedContact.find({
+      owner: req.userId,
+      status: 'pending'
+    }).populate('contact', 'name email');
+
+    return res.json({
+      contacts,
+      pendingRequests: pendingReceived.map(e => ({ requestId: e._id, user: publicUser(e.owner) })),
+      sentRequests: pendingSent.map(e => ({ requestId: e._id, user: publicUser(e.contact) }))
+    });
   } catch (e) { return next(e); }
 });
 
-// POST /api/contacts — add a contact by email
+// POST /api/contacts — send a contact request by email
 app.post('/api/contacts', requireAuth, async (req, res, next) => {
   try {
     const email = req.body.email?.trim().toLowerCase();
@@ -185,18 +213,61 @@ app.post('/api/contacts', requireAuth, async (req, res, next) => {
     const contactUser = await User.findOne({ email });
     if (!contactUser) return res.status(404).json({ message: 'No TrailGuard account found for that email.' });
     if (contactUser._id.toString() === req.userId) return res.status(400).json({ message: 'You cannot add yourself as a contact.' });
-    await TrustedContact.create({ owner: req.userId, contact: contactUser._id });
-    return res.status(201).json({ contact: publicUser(contactUser) });
+
+    // Check if already exists in either direction
+    const existing = await TrustedContact.findOne({
+      $or: [
+        { owner: req.userId, contact: contactUser._id },
+        { owner: contactUser._id, contact: req.userId }
+      ]
+    });
+
+    if (existing) {
+      if (existing.status === 'accepted') return res.status(409).json({ message: 'This person is already a contact.' });
+      return res.status(409).json({ message: 'A request already exists between you and this person.' });
+    }
+
+    await TrustedContact.create({ owner: req.userId, contact: contactUser._id, status: 'pending' });
+    return res.status(201).json({ message: 'Contact request sent.' });
   } catch (e) {
-    if (e.code === 11000) return res.status(409).json({ message: 'This contact is already in your list.' });
+    if (e.code === 11000) return res.status(409).json({ message: 'Request already exists.' });
     return next(e);
   }
 });
 
-// DELETE /api/contacts/:contactId — remove a contact
-app.delete('/api/contacts/:contactId', requireAuth, async (req, res, next) => {
+// PATCH /api/contacts/:requestId/accept — accept a request
+app.patch('/api/contacts/:requestId/accept', requireAuth, async (req, res, next) => {
   try {
-    await TrustedContact.deleteOne({ owner: req.userId, contact: req.params.contactId });
+    const request = await TrustedContact.findOne({ _id: req.params.requestId, contact: req.userId, status: 'pending' });
+    if (!request) return res.status(404).json({ message: 'Request not found.' });
+    
+    request.status = 'accepted';
+    await request.save();
+    return res.json({ success: true });
+  } catch (e) { return next(e); }
+});
+
+// DELETE /api/contacts/:id — remove a contact or reject a request
+app.delete('/api/contacts/:id', requireAuth, async (req, res, next) => {
+  try {
+    // Can be either by requestId (if rejecting) or user ID (if removing accepted)
+    // First try to delete by ID where we are owner or contact
+    const byId = await TrustedContact.findOneAndDelete({
+      _id: req.params.id,
+      $or: [{ owner: req.userId }, { contact: req.userId }]
+    });
+
+    if (!byId) {
+      // If it wasn't a request ID, maybe it was a user ID
+      await TrustedContact.findOneAndDelete({
+        status: 'accepted',
+        $or: [
+          { owner: req.userId, contact: req.params.id },
+          { owner: req.params.id, contact: req.userId }
+        ]
+      });
+    }
+
     return res.json({ success: true });
   } catch (e) { return next(e); }
 });
@@ -253,7 +324,7 @@ app.patch('/api/sessions/:sessionId/location', requireAuth, async (req, res, nex
     const session = await LiveSession.findOneAndUpdate(
       { sessionId: req.params.sessionId, owner: req.userId, status: { $ne: 'ended' } },
       { $set: { 'location.latitude': latitude, 'location.longitude': longitude, 'location.updatedAt': new Date() } },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!session) return res.status(404).json({ message: 'Session not found.' });
     return res.json({ success: true });
@@ -293,7 +364,7 @@ app.post('/api/sessions/:sessionId/sos', requireAuth, async (req, res, next) => 
     const session = await LiveSession.findOneAndUpdate(
       { sessionId: req.params.sessionId, owner: req.userId },
       { $set: { status: 'sos', sosTriggeredAt: new Date(), 'location.latitude': latitude, 'location.longitude': longitude, 'location.updatedAt': new Date() } },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!session) return res.status(404).json({ message: 'Session not found.' });
 
@@ -328,7 +399,7 @@ app.post('/api/sessions/:sessionId/end', requireAuth, async (req, res, next) => 
     const session = await LiveSession.findOneAndUpdate(
       { sessionId: req.params.sessionId, owner: req.userId },
       { $set: { status: 'ended', endedAt: new Date() } },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!session) return res.status(404).json({ message: 'Session not found.' });
 

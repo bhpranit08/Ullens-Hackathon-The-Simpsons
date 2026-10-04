@@ -24,12 +24,13 @@ async function getToken(): Promise<string | null> {
   }
 }
 
-async function apiFetch(path: string, options: RequestInit = {}): Promise<any> {
+export async function apiFetch(path: string, options: RequestInit = {}): Promise<any> {
   const token = await getToken();
   const res = await fetch(`${API_URL}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      'Bypass-Tunnel-Reminder': 'true',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers || {}),
     },
@@ -44,10 +45,20 @@ async function apiFetch(path: string, options: RequestInit = {}): Promise<any> {
 // ── Trusted Contacts ──────────────────────────────────────────────────────────
 
 export type ApiContact = { id: string; name: string; email: string };
+export type ApiContactRequest = { requestId: string; user: ApiContact };
 
 export async function apiGetContacts(): Promise<ApiContact[]> {
   const data = await apiFetch('/contacts');
   return data.contacts ?? [];
+}
+
+export async function apiGetContactData(): Promise<{ contacts: ApiContact[], pendingRequests: ApiContactRequest[], sentRequests: ApiContactRequest[] }> {
+  const data = await apiFetch('/contacts');
+  return {
+    contacts: data.contacts ?? [],
+    pendingRequests: data.pendingRequests ?? [],
+    sentRequests: data.sentRequests ?? []
+  };
 }
 
 export async function apiAddContact(email: string): Promise<ApiContact> {
@@ -56,6 +67,14 @@ export async function apiAddContact(email: string): Promise<ApiContact> {
     body: JSON.stringify({ email }),
   });
   return data.contact;
+}
+
+export async function apiAcceptContactRequest(requestId: string): Promise<void> {
+  await apiFetch(`/contacts/${requestId}/accept`, { method: 'PATCH' });
+}
+
+export async function apiRejectContactRequest(requestId: string): Promise<void> {
+  await apiFetch(`/contacts/${requestId}`, { method: 'DELETE' });
 }
 
 export async function apiRemoveContact(contactId: string): Promise<void> {

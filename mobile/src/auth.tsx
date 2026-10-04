@@ -17,7 +17,7 @@ const sessionStore = {
 };
 
 async function request(path: string, body?: Record<string, string>, token?: string) {
-  const response = await fetch(`${apiUrl}${path}`, { method: body ? 'POST' : 'GET', headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
+  const response = await fetch(`${apiUrl}${path}`, { method: body ? 'POST' : 'GET', headers: { 'Bypass-Tunnel-Reminder': 'true', ...(body ? { 'Content-Type': 'application/json' } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
   
   let data;
   const text = await response.text();
