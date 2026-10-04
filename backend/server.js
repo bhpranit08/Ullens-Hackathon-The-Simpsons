@@ -487,6 +487,41 @@ app.use((error, _req, res, _next) => {
   return res.status(500).json({ message: 'Something went wrong. Please try again.' });
 });
 
+// ─────────────────────────────────────────────
+// Background Jobs
+// ─────────────────────────────────────────────
+
+// Auto-SOS for Offline Devices
+setInterval(async () => {
+  try {
+    // 5 minutes without location update triggers SOS
+    const threshold = new Date(Date.now() - 5 * 60 * 1000);
+    const staleSessions = await LiveSession.find({
+      status: 'active',
+      'location.updatedAt': { $lt: threshold }
+    }).populate('owner');
+
+    for (const session of staleSessions) {
+      session.status = 'sos';
+      session.sosTriggeredAt = new Date();
+      await session.save();
+
+      for (const recipientId of session.sharedWith) {
+        await createNotification(
+          recipientId,
+          session.owner._id,
+          'sos',
+          session.sessionId,
+          `URGENT SOS ALERT: ${session.owner.name}'s device went offline during their ${session.activityType} and an automatic SOS was triggered!`
+        );
+      }
+      console.log(`Auto SOS triggered for session ${session.sessionId} (offline)`);
+    }
+  } catch (err) {
+    console.error('Error in offline SOS job:', err.message);
+  }
+}, 60 * 1000);
+
 if (!jwtSecret) {
   console.error('JWT_SECRET is required. Add it to backend/.env.');
   process.exit(1);

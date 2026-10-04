@@ -155,8 +155,28 @@ export default function StartSessionScreen() {
             />
           </View>
 
-          {/* Trusted Contacts */}
-          <Text style={styles.sectionTitle}>Share With Contacts</Text>
+
+
+          {/* Starting Location */}
+          <Text style={styles.sectionTitle}>Starting Location</Text>
+          <View style={styles.mapContainer}>
+            {locationError ? (
+              <View style={styles.mapPlaceholder}>
+                <Feather name="map-pin" size={32} color="#94A3B8" style={{ marginBottom: 8 }} />
+                <Text style={styles.mapPlaceholderText}>{locationError}</Text>
+              </View>
+            ) : region ? (
+              <MapView style={styles.map} provider={PROVIDER_DEFAULT} initialRegion={region} showsUserLocation scrollEnabled={false} zoomEnabled={false} />
+            ) : (
+              <View style={styles.mapPlaceholder}>
+                <ActivityIndicator color="#2563EB" />
+                <Text style={[styles.mapPlaceholderText, { marginTop: 8 }]}>Locating...</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Session Invitation */}
+          <Text style={styles.sectionTitle}>Session Invitation</Text>
           {loadingContacts ? (
             <ActivityIndicator color="#2563EB" />
           ) : contacts.length === 0 ? (
@@ -186,24 +206,6 @@ export default function StartSessionScreen() {
               })}
             </>
           )}
-
-          {/* Starting Location */}
-          <Text style={styles.sectionTitle}>Starting Location</Text>
-          <View style={styles.mapContainer}>
-            {locationError ? (
-              <View style={styles.mapPlaceholder}>
-                <Feather name="map-pin" size={32} color="#94A3B8" style={{ marginBottom: 8 }} />
-                <Text style={styles.mapPlaceholderText}>{locationError}</Text>
-              </View>
-            ) : region ? (
-              <MapView style={styles.map} provider={PROVIDER_DEFAULT} initialRegion={region} showsUserLocation scrollEnabled={false} zoomEnabled={false} />
-            ) : (
-              <View style={styles.mapPlaceholder}>
-                <ActivityIndicator color="#2563EB" />
-                <Text style={[styles.mapPlaceholderText, { marginTop: 8 }]}>Locating...</Text>
-              </View>
-            )}
-          </View>
 
         </View>
       </ScrollView>

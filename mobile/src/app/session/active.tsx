@@ -102,7 +102,7 @@ export default function ActiveSessionScreen() {
         broadcastLocation(init.coords.latitude, init.coords.longitude);
 
         sub = await Location.watchPositionAsync(
-          { accuracy: Location.Accuracy.High, timeInterval: 3000, distanceInterval: 5 },
+          { accuracy: Location.Accuracy.BestForNavigation, timeInterval: 1000, distanceInterval: 1 },
           (loc) => {
             setCurrentLocation(loc.coords);
             setRouteCoordinates(prev => {
@@ -122,10 +122,19 @@ export default function ActiveSessionScreen() {
     return () => { sub?.remove(); };
   }, [broadcastLocation]);
 
+  // Fallback offline recovery & heartbeat: Ensure location syncs even if stationary
+  useEffect(() => {
+    if (!currentLocation || !isShared || !id) return;
+    const t = setInterval(() => {
+      apiUpdateLocation(id, currentLocation.latitude, currentLocation.longitude).catch(() => {});
+    }, 5000); // 5 second heartbeat
+    return () => clearInterval(t);
+  }, [currentLocation, isShared, id]);
+
   const formatTime = (s: number) => `${Math.floor(s / 60).toString().padStart(2, '0')}:${(Math.floor(s) % 60).toString().padStart(2, '0')}`;
   
   const getPace = () => {
-    if (distance < 0.05 || elapsed < 10) return '--:-- /km'; // Need minimum distance/time for accurate pace
+    if (distance < 0.005 || elapsed < 5) return '--:-- /km'; // Calculate pace even if only moved 5 meters
     const secondsPerKm = elapsed / distance;
     return `${formatTime(secondsPerKm)} /km`;
   };
