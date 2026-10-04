@@ -1,7 +1,7 @@
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { StyleSheet, Text, View, Pressable, SafeAreaView, ActivityIndicator, Alert, Platform, Modal, TextInput, BackHandler } from 'react-native';
-import MapView, { Polyline, PROVIDER_DEFAULT, Region } from 'react-native-maps';
+import MapView, { Polyline, UrlTile, PROVIDER_DEFAULT, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Feather } from '@expo/vector-icons';
 
@@ -230,7 +230,14 @@ export default function ActiveSessionScreen() {
         {locationError ? (
           <View style={styles.mapPlaceholder}><Text style={styles.mapText}>{locationError}</Text></View>
         ) : currentLocation && initialRegion ? (
-          <MapView ref={mapRef} style={styles.map} provider={PROVIDER_DEFAULT} initialRegion={initialRegion} showsUserLocation showsMyLocationButton={false}>
+          <MapView ref={mapRef} style={styles.map} provider={PROVIDER_DEFAULT} mapType={Platform.OS === 'android' ? 'none' : 'standard'} initialRegion={initialRegion} showsUserLocation showsMyLocationButton={false}>
+            {Platform.OS === 'android' && (
+              <UrlTile
+                urlTemplate="https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                maximumZ={19}
+                flipY={false}
+              />
+            )}
             <Polyline coordinates={routeCoordinates} strokeColor={isSOS ? '#DC2626' : '#2563EB'} strokeWidth={4} />
           </MapView>
         ) : (

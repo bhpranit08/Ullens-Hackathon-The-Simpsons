@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, ScrollView, Platform, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
+import MapView, { Marker, UrlTile, PROVIDER_DEFAULT } from 'react-native-maps';
 
 import { useAuth } from '@/auth';
 import { getHistoryEvents, HistoryEvent } from '@/history';
@@ -204,6 +204,7 @@ export default function HomeScreen() {
                       <MapView
                         style={styles.sharingMap}
                         provider={PROVIDER_DEFAULT}
+                        mapType={Platform.OS === 'android' ? 'none' : 'standard'}
                         region={{
                           latitude: session.location.latitude,
                           longitude: session.location.longitude,
@@ -215,6 +216,13 @@ export default function HomeScreen() {
                         scrollEnabled={false}
                         zoomEnabled={false}
                       >
+                        {Platform.OS === 'android' && (
+                          <UrlTile
+                            urlTemplate="https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                            maximumZ={19}
+                            flipY={false}
+                          />
+                        )}
                         <Marker
                           coordinate={{ latitude: session.location.latitude, longitude: session.location.longitude }}
                           pinColor={session.status === 'sos' ? '#DC2626' : '#2563EB'}

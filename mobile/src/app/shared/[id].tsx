@@ -2,9 +2,9 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet, Text, View, Pressable, SafeAreaView,
-  ActivityIndicator, ScrollView, Linking, Alert
+  ActivityIndicator, ScrollView, Linking, Alert, Platform
 } from 'react-native';
-import MapView, { PROVIDER_DEFAULT, Marker, Circle } from 'react-native-maps';
+import MapView, { PROVIDER_DEFAULT, Marker, Circle, UrlTile } from 'react-native-maps';
 import { Feather } from '@expo/vector-icons';
 import { apiGetSession, LiveSession } from '@/apiService';
 
@@ -110,6 +110,7 @@ export default function LiveActivityScreen() {
             <MapView
               style={styles.map}
               provider={PROVIDER_DEFAULT}
+              mapType={Platform.OS === 'android' ? 'none' : 'standard'}
               region={{
                 latitude: session.location!.latitude,
                 longitude: session.location!.longitude,
@@ -117,6 +118,13 @@ export default function LiveActivityScreen() {
                 longitudeDelta: 0.01,
               }}
             >
+              {Platform.OS === 'android' && (
+                <UrlTile
+                  urlTemplate="https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  maximumZ={19}
+                  flipY={false}
+                />
+              )}
               <Marker
                 coordinate={{ latitude: session.location!.latitude, longitude: session.location!.longitude }}
                 title={session.owner.name}

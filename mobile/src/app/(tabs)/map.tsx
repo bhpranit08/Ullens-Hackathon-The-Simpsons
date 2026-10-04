@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, Pressable, ScrollView, Modal, TextInput, ActivityIndicator, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import MapView, { Marker, PROVIDER_DEFAULT, Region } from 'react-native-maps';
+import MapView, { Marker, UrlTile, PROVIDER_DEFAULT, Region } from 'react-native-maps';
+import { Platform } from 'react-native';
 import * as Location from 'expo-location';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
@@ -126,6 +127,7 @@ export default function HazardMapScreen() {
         <MapView
           style={styles.map}
           provider={PROVIDER_DEFAULT}
+          mapType={Platform.OS === 'android' ? 'none' : 'standard'}
           initialRegion={region}
           showsUserLocation
           showsMyLocationButton
@@ -133,6 +135,13 @@ export default function HazardMapScreen() {
             setSelectedCoordinate(e.nativeEvent.coordinate);
           }}
         >
+          {Platform.OS === 'android' && (
+            <UrlTile
+              urlTemplate="https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              maximumZ={19}
+              flipY={false}
+            />
+          )}
           {hazards.map((hazard: Hazard) => (
             <Marker
               key={hazard.id}
