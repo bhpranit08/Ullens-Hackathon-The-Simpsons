@@ -100,6 +100,19 @@ export default function TimelineScreen() {
                 <View style={styles.folderFooter}>
                   <Feather name="folder" size={14} color="#64748B" style={{ marginRight: 6 }} />
                   <Text style={styles.folderText}>Activity Folder</Text>
+                  
+                  {event.distance ? (
+                    <View style={styles.statsTag}>
+                      <Feather name="map-pin" size={12} color="#2563EB" style={{ marginRight: 4 }} />
+                      <Text style={styles.statsText}>{event.distance.toFixed(1)} km</Text>
+                    </View>
+                  ) : null}
+                  {event.pace ? (
+                    <View style={styles.statsTag}>
+                      <Feather name="clock" size={12} color="#2563EB" style={{ marginRight: 4 }} />
+                      <Text style={styles.statsText}>{Math.floor(event.pace / 60)}:{Math.floor(event.pace % 60).toString().padStart(2, '0')}/km</Text>
+                    </View>
+                  ) : null}
                 </View>
               </Pressable>
             ))}
@@ -160,6 +173,9 @@ const styles = StyleSheet.create({
   recentActivityTime: { fontSize: 13, color: '#64748B', fontWeight: '600' },
   recentActivityTitle: { fontSize: 18, fontWeight: '800', color: '#0F172A', marginBottom: 4 },
   recentActivitySubtitle: { fontSize: 15, color: '#475569', marginBottom: 16 },
-  folderFooter: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F5F9', alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
-  folderText: { fontSize: 12, fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5 }
+  recentActivitySubtitle: { fontSize: 15, color: '#475569', marginBottom: 16 },
+  folderFooter: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F5F9', alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, flexWrap: 'wrap', gap: 8 },
+  folderText: { fontSize: 12, fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5 },
+  statsTag: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#DBEAFE', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  statsText: { fontSize: 11, fontWeight: '700', color: '#1E3A8A' }
 });

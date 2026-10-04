@@ -39,6 +39,7 @@ export default function ActiveSessionScreen() {
   const [routeCoordinates, setRouteCoordinates] = useState<Location.LocationObjectCoords[]>([]);
   const [currentLocation, setCurrentLocation] = useState<Location.LocationObjectCoords | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [distance, setDistance] = useState(0); // in km
   const mapRef = useRef<MapView>(null);
 
   // Broadcast location to backend every 10s
@@ -104,7 +105,14 @@ export default function ActiveSessionScreen() {
           { accuracy: Location.Accuracy.High, timeInterval: 3000, distanceInterval: 5 },
           (loc) => {
             setCurrentLocation(loc.coords);
-            setRouteCoordinates(prev => [...prev, loc.coords]);
+            setRouteCoordinates(prev => {
+              if (prev.length > 0) {
+                const lastLoc = prev[prev.length - 1];
+                const dist = getDistanceFromLatLonInKm(lastLoc.latitude, lastLoc.longitude, loc.coords.latitude, loc.coords.longitude);
+                setDistance(d => d + dist);
+              }
+              return [...prev, loc.coords];
+            });
             broadcastLocation(loc.coords.latitude, loc.coords.longitude);
             mapRef.current?.animateCamera({ center: { latitude: loc.coords.latitude, longitude: loc.coords.longitude } });
           }
@@ -114,7 +122,13 @@ export default function ActiveSessionScreen() {
     return () => { sub?.remove(); };
   }, [broadcastLocation]);
 
-  const formatTime = (s: number) => `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
+  const formatTime = (s: number) => `${Math.floor(s / 60).toString().padStart(2, '0')}:${(Math.floor(s) % 60).toString().padStart(2, '0')}`;
+  
+  const getPace = () => {
+    if (distance < 0.05 || elapsed < 10) return '--:-- /km'; // Need minimum distance/time for accurate pace
+    const secondsPerKm = elapsed / distance;
+    return `${formatTime(secondsPerKm)} /km`;
+  };
 
   const handleCheckIn = async () => {
     setTimeLeft(initialDuration);
@@ -198,6 +212,14 @@ export default function ActiveSessionScreen() {
 
   const handleEndSession = async () => {
     if (isShared) await apiEndSession(id).catch(() => {});
+    
+    // Save the final distance and calculated pace to history
+    const finalPace = (distance > 0) ? (elapsed / distance) : undefined;
+    updateHistoryEvent(id, {
+      distance: distance,
+      pace: finalPace
+    });
+    
     router.replace({ pathname: '/session/end', params: { id, duration: elapsed.toString() } });
   };
 
@@ -261,9 +283,9 @@ export default function ActiveSessionScreen() {
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statBox}>
-          <Text style={styles.statLabel}>LOCATION</Text>
+          <Text style={styles.statLabel}>PACE</Text>
           <Text style={styles.statValue} numberOfLines={1}>
-            {currentLocation ? `${currentLocation.latitude.toFixed(3)}, ${currentLocation.longitude.toFixed(3)}` : '---'}
+            {getPace()}
           </Text>
         </View>
       </View>
@@ -421,3 +443,20 @@ const styles = StyleSheet.create({
   submitButton: { backgroundColor: '#2563EB', borderRadius: 16, paddingVertical: 18, alignItems: 'center', marginTop: 24 },
   submitButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
 });
+
+// Helper for distance calculation
+function getDistanceFromLatLonInKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371; // Radius of the earth in km
+  const dLat = deg2rad(lat2 - lat1);
+  const dLon = deg2rad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function deg2rad(deg: number) {
+  return deg * (Math.PI / 180);
+}

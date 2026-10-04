@@ -58,6 +58,18 @@ export default function ActivityDetailsScreen() {
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statBox}>
+            <Text style={styles.statLabel}>Distance</Text>
+            <Text style={styles.statValue}>{activity.distance ? `${activity.distance.toFixed(2)} km` : '--'}</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statBox}>
+            <Text style={styles.statLabel}>Pace</Text>
+            <Text style={styles.statValue}>{activity.pace ? `${Math.floor(activity.pace / 60)}:${Math.floor(activity.pace % 60).toString().padStart(2, '0')}/km` : '--'}</Text>
+          </View>
+        </View>
+
+        <View style={[styles.statsCard, { marginTop: -16 }]}>
+          <View style={styles.statBox}>
             <Text style={styles.statLabel}>Date</Text>
             <Text style={styles.statValue}>{new Date(activity.date).toLocaleDateString()}</Text>
           </View>

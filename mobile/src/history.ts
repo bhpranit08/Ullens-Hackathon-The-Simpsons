@@ -18,6 +18,8 @@ export type HistoryEvent = {
   notes?: string;
   photos?: string[];
   updates?: UpdateEvent[];
+  distance?: number;
+  pace?: number;
 };
 const HISTORY_KEY = 'trailguard.history';
 

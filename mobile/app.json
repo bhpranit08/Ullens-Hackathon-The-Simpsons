@@ -11,6 +11,11 @@
       "icon": "./assets/expo.icon"
     },
     "android": {
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyDummyKeyForDevelopmentPurposesOnly"
+        }
+      },
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
